@@ -20,19 +20,31 @@ if (process.env.VCAP_SERVICES) {
   // Cloud Foundry Configuration
   try {
     const vcapServices = JSON.parse(process.env.VCAP_SERVICES);
-    // Look for 'p-redis' or 'redis' service
-    const redisService = vcapServices['p-redis']?.[0] || vcapServices['redis']?.[0];
     
+    // Find a service that looks like Redis
+    let redisService;
+
+    // 1. Try known platform service labels
+    redisService = vcapServices['p-redis']?.[0] || vcapServices['redis']?.[0];
+
+    // 2. If not found, look for user-provided services with typical Redis credentials
+    if (!redisService && vcapServices['user-provided']) {
+      redisService = vcapServices['user-provided'].find(service => 
+        service.credentials && (service.credentials.host || service.credentials.hostname) && service.credentials.port
+      );
+    }
+
     if (redisService) {
+      const creds = redisService.credentials;
       redis = new Redis({
-        host: redisService.credentials.host,
-        port: redisService.credentials.port,
-        password: redisService.credentials.password,
-        tls: redisService.credentials.tls // Some providers require TLS
+        host: creds.host || creds.hostname,
+        port: creds.port,
+        password: creds.password,
+        tls: creds.tls // Some providers require TLS
       });
-      console.log('Connected to Cloud Foundry Redis Service');
+      console.log(`Connected to Redis Service: ${redisService.name} (Type: ${redisService.label || 'user-provided'})`);
     } else {
-      console.error('No Redis service found in VCAP_SERVICES');
+      console.error('No suitable Redis service found in VCAP_SERVICES');
     }
   } catch (err) {
     console.error('Error parsing VCAP_SERVICES:', err);
