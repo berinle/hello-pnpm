@@ -1,5 +1,5 @@
 applications:
-- name: hello-pnpm
+- name: hello-pnpm-vendored
   memory: 128M
   instances: 1
   services:

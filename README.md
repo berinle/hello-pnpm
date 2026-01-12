@@ -1,46 +1,40 @@
 # Hello World Node.js with pnpm on Cloud Foundry
 
-This is a simple Hello World Node.js application using `pnpm` as the package manager, ready for deployment to Cloud Foundry.
+This application demonstrates how to deploy a Node.js app using `pnpm` to Cloud Foundry, specifically in "vendored" mode where dependencies are pre-installed locally and uploaded.
 
-## Deployment
+## Deployment Strategy: Vendored/Offline
 
-To deploy this application to Cloud Foundry, make sure you have the CF CLI installed and are logged in.
+Cloud Foundry's Node.js buildpack natively supports `npm` and `yarn`. To use `pnpm` effectively—especially in environments where the buildpack cannot access the public internet—we "vendor" our dependencies.
 
-### Important Note for pnpm
+We configure `pnpm` to use a flat `node_modules` structure (similar to npm) instead of symlinks. This allows us to upload the `node_modules` folder directly to CF.
 
-Since Cloud Foundry's Node.js buildpack does not natively support `pnpm` (it defaults to `npm` or `yarn`), we must ensure that the local `node_modules` directory is **not** uploaded during deployment.
+### Configuration
 
-We achieve this by adding a `.cfignore` file to the root of the project with the following content:
+1.  **.npmrc**: Contains `node-linker=hoisted`. This tells `pnpm` to install packages physically into `node_modules` without symlinks.
+2.  **.cfignore**: **Does NOT** ignore `node_modules/`. This ensures the folder is uploaded during `cf push`.
 
-```
-node_modules/
-.git/
-.DS_Store
-```
+### Steps to Deploy
 
-This forces the buildpack to run a fresh install on the server. Although the buildpack will use `npm install` (since it sees `package.json` but no `yarn.lock`), it will successfully install the dependencies listed in `package.json`.
+1.  **Install Dependencies Locally:**
+    Run this command to create the portable `node_modules` folder:
+    ```bash
+    pnpm install
+    ```
 
-### Steps
-
-1.  **Push the application:**
-
+2.  **Push the Application:**
     ```bash
     cf push
     ```
-
-2.  **Access the application:**
-    Once deployed, the CLI will output the route (URL) for your application.
+    The buildpack will detect the existing `node_modules` folder and skip the installation step (running `npm rebuild` if necessary for native modules).
 
 ## Local Development
 
 1.  **Install dependencies:**
-
     ```bash
     pnpm install
     ```
 
 2.  **Start the app:**
-
     ```bash
     pnpm start
     ```
