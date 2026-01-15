@@ -2,10 +2,12 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const Redis = require('ioredis');
 const { formatDistanceToNow } = require('date-fns');
+const cfenv = require('cfenv');
 const path = require('path');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const appEnv = cfenv.getAppEnv();
+const port = appEnv.port || 3000;
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -15,44 +17,20 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Redis Connection
 let redis;
+// Search by label (platform services) or by name (CUPS or any service)
+const redisService = appEnv.getService(/redis/i)
+  || Object.values(appEnv.getServices()).find(s => /redis/i.test(s.name));
 
-if (process.env.VCAP_SERVICES) {
-  // Cloud Foundry Configuration
-  try {
-    const vcapServices = JSON.parse(process.env.VCAP_SERVICES);
-    
-    // Find a service that looks like Redis
-    let redisService;
-
-    // 1. Try known platform service labels
-    redisService = vcapServices['p-redis']?.[0] || vcapServices['redis']?.[0];
-
-    // 2. If not found, look for user-provided services with typical Redis credentials
-    if (!redisService && vcapServices['user-provided']) {
-      redisService = vcapServices['user-provided'].find(service => 
-        service.credentials && (service.credentials.host || service.credentials.hostname) && service.credentials.port
-      );
-    }
-
-    if (redisService) {
-      const creds = redisService.credentials;
-      redis = new Redis({
-        host: creds.host || creds.hostname,
-        port: creds.port,
-        password: creds.password,
-        tls: creds.tls // Some providers require TLS
-      });
-      console.log(`Connected to Redis Service: ${redisService.name} (Type: ${redisService.label || 'user-provided'})`);
-    } else {
-      console.error('No suitable Redis service found in VCAP_SERVICES');
-    }
-  } catch (err) {
-    console.error('Error parsing VCAP_SERVICES:', err);
-  }
-} 
-
-// Fallback to local Redis if not on CF or connection failed
-if (!redis) {
+if (redisService) {
+  const creds = redisService.credentials;
+  redis = new Redis({
+    host: creds.host || creds.hostname,
+    port: creds.port,
+    password: creds.password,
+    tls: creds.tls
+  });
+  console.log(`Connected to Redis Service: ${redisService.name} (Type: ${redisService.label || 'user-provided'})`);
+} else {
   redis = new Redis(); // Defaults to localhost:6379
   console.log('Connected to Local Redis');
 }

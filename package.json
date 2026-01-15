@@ -13,6 +13,7 @@
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
     "body-parser": "^2.2.2",
+    "cfenv": "^1.2.4",
     "date-fns": "^4.1.0",
     "ejs": "^3.1.10",
     "express": "^5.2.1",

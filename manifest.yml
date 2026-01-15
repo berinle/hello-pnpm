@@ -1,9 +1,10 @@
 applications:
-- name: hello-pnpm-vendored
+- name: hello-pnpm-vendored2
   memory: 128M
   instances: 1
   services:
-  - cache
+  #- cache
+  - my-external-redis
   buildpacks:
     - nodejs_buildpack
   command: node index.js
